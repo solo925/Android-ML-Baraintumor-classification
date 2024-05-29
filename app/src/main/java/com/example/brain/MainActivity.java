@@ -58,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
             tflite = new Interpreter(loadModelFile());
         } catch (IOException e) {
             e.printStackTrace();
+            Toast.makeText(this, "Model could not be loaded", Toast.LENGTH_SHORT).show();
         }
 
         buttonSelectImage.setOnClickListener(new View.OnClickListener() {
@@ -105,11 +106,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private MappedByteBuffer loadModelFile() throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(getAssets().openFd("model.tflite").getFileDescriptor());
-        FileChannel fileChannel = fileInputStream.getChannel();
-        long startOffset = getAssets().openFd("model.tflite").getStartOffset();
-        long declaredLength = getAssets().openFd("model.tflite").getDeclaredLength();
-        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        try (FileInputStream fileInputStream = new FileInputStream(getAssets().openFd("finalyear.tflite").getFileDescriptor());
+             FileChannel fileChannel = fileInputStream.getChannel()) {
+            long startOffset = getAssets().openFd("finalyear.tflite").getStartOffset();
+            long declaredLength = getAssets().openFd("finalyear.tflite").getDeclaredLength();
+            return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+        }
     }
 
     private void classifyImage() {
@@ -117,13 +119,17 @@ public class MainActivity extends AppCompatActivity {
         ByteBuffer inputBuffer = convertBitmapToByteBuffer(resizedBitmap);
 
         float[][] result = new float[1][4];
-        tflite.run(inputBuffer, result);
+        if (tflite != null) {
+            tflite.run(inputBuffer, result);
 
-        int predictedLabelIndex = getMaxIndex(result[0]);
-        String predictedLabel = labels[predictedLabelIndex];
-        float confidence = result[0][predictedLabelIndex] * 100;
+            int predictedLabelIndex = getMaxIndex(result[0]);
+            String predictedLabel = labels[predictedLabelIndex];
+            float confidence = result[0][predictedLabelIndex] * 100;
 
-        textViewResult.setText("Prediction: " + predictedLabel + "\nConfidence: " + confidence + "%");
+            textViewResult.setText("Prediction: " + predictedLabel + "\nConfidence: " + confidence + "%");
+        } else {
+            Toast.makeText(this, "Model is not initialized", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private ByteBuffer convertBitmapToByteBuffer(Bitmap bitmap) {
